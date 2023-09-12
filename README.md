@@ -4,6 +4,12 @@ A kernel-mode device driver to set a GPIO pin to toggle according to the kernel 
 
 Developed on Raspberry PI 3B+, Raspbian GNU/Linux 11 (bullseye), Linux 6.1.21-v7+.
 
+## Install prerequisites
+
+```bash
+apt install raspberrypi-kernel-headers
+```
+
 ## Build and test run
 
 ```bash
