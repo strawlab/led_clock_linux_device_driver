@@ -14,10 +14,13 @@
 
 // Based on https://github.com/Embetronicx/Tutorials/blob/master/Linux/Device_Driver/High_Resolution_Timer/driver.c
 // and https://github.com/Embetronicx/Tutorials/tree/master/Linux/Device_Driver/GPIO-in-Linux-Device-Driver
+// for write-ups, see
+// https://embetronicx.com/tutorials/linux/device-drivers/using-high-resolution-timer-in-linux-device-driver/
+//
 
 //Timer Variable
-#define TIMEOUT_NSEC   ( 1000000000L )      //1 second in nano seconds
-#define TIMEOUT_SEC    ( 4 )                //4 seconds
+#define TIMEOUT_NSEC   ( 10000000L )      // 10 msecs
+#define TIMEOUT_SEC    ( 0 )
 
 static struct hrtimer ledclock_hr_timer;
 static unsigned int count = 0;
@@ -56,9 +59,8 @@ static struct file_operations ledclock_fops =
 enum hrtimer_restart timer_callback(struct hrtimer *timer)
 {
     int led_value = count++%2;
-    gpio_set_value(GPIO_LED, count%2);
-     /* do your timer stuff here */
-    pr_info("Setting LED on timer callback [%d]\n", led_value);
+    gpio_set_value(GPIO_LED, led_value);
+    // pr_info("Setting LED on timer callback [%d]\n", led_value);
     hrtimer_forward_now(timer,ktime_set(TIMEOUT_SEC, TIMEOUT_NSEC));
     return HRTIMER_RESTART;
 }
@@ -180,7 +182,7 @@ static int __init ledclock_driver_init(void)
   gpio_direction_output(GPIO_LED, 0);
 
   ktime = ktime_set(TIMEOUT_SEC, TIMEOUT_NSEC);
-  hrtimer_init(&ledclock_hr_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+  hrtimer_init(&ledclock_hr_timer, CLOCK_REALTIME, HRTIMER_MODE_REL);
   ledclock_hr_timer.function = &timer_callback;
   hrtimer_start( &ledclock_hr_timer, ktime, HRTIMER_MODE_REL);
 
