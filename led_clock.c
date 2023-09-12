@@ -10,6 +10,17 @@
 *******************************************************************************/
 #include <linux/cdev.h>
 #include <linux/gpio.h>
+#include <linux/hrtimer.h>
+
+// Based on https://github.com/Embetronicx/Tutorials/blob/master/Linux/Device_Driver/High_Resolution_Timer/driver.c
+// and https://github.com/Embetronicx/Tutorials/tree/master/Linux/Device_Driver/GPIO-in-Linux-Device-Driver
+
+//Timer Variable
+#define TIMEOUT_NSEC   ( 1000000000L )      //1 second in nano seconds
+#define TIMEOUT_SEC    ( 4 )                //4 seconds
+
+static struct hrtimer ledclock_hr_timer;
+static unsigned int count = 0;
 
 // LED is connected to this GPIO
 #define GPIO_LED (16)
@@ -40,6 +51,17 @@ static struct file_operations ledclock_fops =
   .open           = ledclock_cdev_open,
   .release        = ledclock_cdev_release,
 };
+
+//Timer Callback function. This will be called when timer expires
+enum hrtimer_restart timer_callback(struct hrtimer *timer)
+{
+    int led_value = count++%2;
+    gpio_set_value(GPIO_LED, count%2);
+     /* do your timer stuff here */
+    pr_info("Setting LED on timer callback [%d]\n", led_value);
+    hrtimer_forward_now(timer,ktime_set(TIMEOUT_SEC, TIMEOUT_NSEC));
+    return HRTIMER_RESTART;
+}
 
 /*
 ** This function will be called when we open the Device file
@@ -113,12 +135,13 @@ static ssize_t ledclock_cdev_write(struct file *filp,
 */
 static int __init ledclock_driver_init(void)
 {
+  ktime_t ktime;
+
   /*Allocating Major number*/
   if((alloc_chrdev_region(&dev, 0, 1, "ledclock_Dev")) <0){
     pr_err("Cannot allocate major number\n");
     goto r_unreg;
   }
-  pr_info("Major = %d Minor = %d \n",MAJOR(dev), MINOR(dev));
 
   /*Creating cdev structure*/
   cdev_init(&ledclock_cdev,&ledclock_fops);
@@ -156,17 +179,12 @@ static int __init ledclock_driver_init(void)
   //configure the GPIO as output
   gpio_direction_output(GPIO_LED, 0);
 
-//   /* Using this call the GPIO X will be visible in /sys/class/gpio/
-//   ** Now you can change the gpio values by using below commands also.
-//   ** echo 1 > /sys/class/gpio/gpioX/value  (turn ON the LED)
-//   ** echo 0 > /sys/class/gpio/gpioX/value  (turn OFF the LED)
-//   ** cat /sys/class/gpio/gpioX/value  (read the value LED)
-//   **
-//   ** the second argument prevents the direction from being changed.
-//   */
-//   gpio_export(GPIO_LED, false);
+  ktime = ktime_set(TIMEOUT_SEC, TIMEOUT_NSEC);
+  hrtimer_init(&ledclock_hr_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+  ledclock_hr_timer.function = &timer_callback;
+  hrtimer_start( &ledclock_hr_timer, ktime, HRTIMER_MODE_REL);
 
-  pr_info("LED Clock device driver init done.\n");
+  pr_info("LED Clock device driver initialized using GPIO %d.\n", GPIO_LED);
   return 0;
 
 r_gpio:
@@ -188,7 +206,7 @@ r_unreg:
 */
 static void __exit ledclock_driver_exit(void)
 {
-//   gpio_unexport(GPIO_LED);
+  hrtimer_cancel(&ledclock_hr_timer);
   gpio_free(GPIO_LED);
   device_destroy(dev_class,dev);
   class_destroy(dev_class);
@@ -201,6 +219,6 @@ module_init(ledclock_driver_init);
 module_exit(ledclock_driver_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("EmbeTronicX <embetronicx@gmail.com>");
-MODULE_DESCRIPTION("A simple device led_clock - GPIO Driver");
-MODULE_VERSION("1.32");
+MODULE_AUTHOR("Andrew Straw <strawman@astraw.com>");
+MODULE_DESCRIPTION("LED clock");
+MODULE_VERSION("1.1");
