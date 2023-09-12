@@ -16,7 +16,7 @@
 // and https://github.com/Embetronicx/Tutorials/tree/master/Linux/Device_Driver/GPIO-in-Linux-Device-Driver
 // for write-ups, see
 // https://embetronicx.com/tutorials/linux/device-drivers/using-high-resolution-timer-in-linux-device-driver/
-//
+// https://embetronicx.com/tutorials/linux/device-drivers/gpio-driver-basic-using-raspberry-pi/
 
 //Timer Variable
 #define TIMEOUT_NSEC   ( 10000000L )      // 10 msecs
